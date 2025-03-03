@@ -85,7 +85,128 @@ eval(Node *root, variable *vars, size_cdz varsize, function *funcs, size_cdz fun
     }
 }
 
+void                                                // Got the print function (made by copilot)
+printTree(Node *root) {
+    printHelp(root);
+    printf("\n");
+}
 
+void
+printHelp(Node *root) {
+    switch (root->type) {
+        case BINARY:
+            printf("(");
+            printTree(root->binary.left);
+            printf(" %s ", root->binary.oper);
+            printTree(root->binary.right);
+            printf(")");
+            break;
+        case UNARY:
+            printf("%s(", root->unary.oper);
+            printTree(root->unary.operand);
+            printf(")");
+            break;
+        case NUM:
+            printf("%g", root->number);
+            break;
+        case VAR:
+            printf("%s", root->var);
+            break;
+        case FUNC:
+            printf("%s(", root->func.name);
+            for (size_t i = 0; i < root->func.count; ++i) {
+                printTree(root->func.arguments[i]);
+                if (i != root->func.count - 1) {
+                    printf(", ");
+                }
+            }
+            printf(")");
+            break;
+        case GROUP:
+            printf("(");
+            printTree(root->group);
+            printf(")");
+            break;
+    }
+}
+
+Node*                                                                // Started derivative function, have some troubles with count of arguments in my "built-in" functions
+derivative(Node *root, char *derArg) {
+    switch(root -> type) {
+        case BINARY:
+            Node *left = derivative(root -> binary.left, derArg);
+            Node *right = derivative(root -> binary.right, derArg);
+            switch (root -> binary.type) {
+                case SUM:
+                    Node *der = createBinary(TOKEN_PLUS, "+", left, right);
+                    return der;
+                case SUB:
+                    Node *der = createBinary(TOKEN_MINUS, "-", left, right);
+                    return der;
+                case MUL:
+                    Node *ll = root -> binary.left;
+                    Node *lr = right;
+                    Node *rl = left;
+                    Node *rr = root -> binary.right;
+                    Node *der = createBinary(TOKEN_PLUS, "+", createBinary(TOKEN_STAR, "*", ll, lr), createBinary(TOKEN_STAR, "*", rl, rr));
+                    return der;
+                case DIV:
+                    Node *ll = root -> binary.left;
+                    Node *lr = right;
+                    Node *rl = left;
+                    Node *rr = root -> binary.right;
+                    Node *der = createBinary(TOKEN_SLASH, "/", createBinary(TOKEN_MINUS, "-", createBinary(TOKEN_STAR, "*", ll, lr), createBinary(TOKEN_STAR, "*", rl, rr)), createBinary(TOKEN_CARET, "^", rr, createNumber("2")));
+                    return der;
+                case POW:
+                    if (root -> binary.left -> type == NUM) {
+                        if (root -> binary.right -> type == NUM) {
+                            Node *der = createNumber("0");
+                            return der;
+                        } else {
+                            Node *der = createBinary(TOKEN_STAR, "*", createBinary(TOKEN_STAR, "*", right, createFunction("log", 1, root -> binary.left)), root);
+                            return der;
+                        }
+                    } else {
+                        if (root -> binary.right -> type == NUM) {
+                            char number[32];
+                            sprintf(number, "%g", root -> binary.right -> number - 1);
+                            Node *der = createBinary(TOKEN_STAR, "*", root -> binary.right, createBinary(TOKEN_STAR, "*", left, createBinary(TOKEN_CARET, "^", root -> binary.left, createNumber(number))));
+                            return der;
+                        }
+                        else {
+                            Node *der = createBinary(TOKEN_CARET, "^", createNumber("e"), createBinary(TOKEN_STAR, "*", root -> binary.right, createFunction("log", 1, root -> binary.left)));
+                            return der;
+                        }
+                    }
+            }   
+        case UNARY:
+            Node *operand = derivative(root -> unary.operand, derArg);
+            Node *der = createUnary(operand -> type, operand -> unary.oper, operand);
+            return der;
+        case NUM:
+            Node *der = createNumber("0");
+            return der;
+        case VAR:
+            if (!strcmp(root -> var, derArg)) {
+                Node *der = createNumber("1");
+                return der;
+            } else {
+                Node *der = createNumber("0");
+                return der;
+            }
+        case FUNC:
+            char *name = root -> func.name;
+            for (int i = 0; i < sizeof(derFuncs)/sizeof(ders); ++i) {
+                if (!strcmp(name, derFuncs[i].func)) {
+                    return createFunction(derFuncs[i].der, derFuncs[i].argCount, root -> func.arguments);
+                }
+            }
+            fprintf(stderr, "OSHIBKA\n");
+            exit(1);
+        case GROUP:
+            return derivative(root -> group, derArg);
+    }
+}
 
 // char*
 // derivative(const char *input, char derArg) {
