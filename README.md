@@ -6,7 +6,7 @@ For now there are:
 3) Working calculations
 
 Plans:
-1) Derivative (function)
+1) Derivative (function)  --- Done
 2) Derivative (value)
 3) Tangent equasion
-4) Simplifying expression
+4) Simplifying expression --- Done
